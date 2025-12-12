@@ -85,6 +85,9 @@ class YapiGUI:
         # 开始按钮
         start_button = tk.Button(top_frame, text="开始", command=self.start_exploit)
         start_button.pack(side=tk.LEFT, padx=5)
+        # 修复按钮
+        fix_button = tk.Button(top_frame, text="修复", command=self.fix_exploit)
+        fix_button.pack(side=tk.LEFT, padx=5)
     
     def create_middle_section(self):
         middle_frame = tk.Frame(self.main_frame)
@@ -492,6 +495,18 @@ class YapiGUI:
             
         else:
             self.result_text.insert(tk.END, "请选择有效的漏洞类型\n")
+
+    def fix_exploit(self):
+        # 获取漏洞类型
+        exploit_type = self.exploit_type.get()
+        if exploit_type == "unacc注册开放":
+            self.result_text.insert(tk.END, "修复漏洞说明\n")
+            unacc = "cat ../config.json\n一般在上一层\n添加\"closeRegister\":true\n用命令执行\necho \"ewogICAgInBvcnQiOiAiMzAwMCIsCiAgICAiYWRtaW5BY2NvdW50IjogImFkbWluQGFkbWluLmNvbSIsCiAgICAidGltZW91dCI6MTIwMDAwLAogICAgImRiIjogewogICAgICAgICJzZXJ2ZXJuYW1lIjogIm1vbmdvIiwKICAgICAgICAiREFUQUJBU0UiOiAieWFwaSIsCiAgICAgICAgInBvcnQiOiAyNzAxNywKICAgICAgICAidXNlciI6ICJyb290IiwKICAgICAgICAicGFzcyI6ICJyb290IiwKICAgICAgICAiYXV0aFNvdXJjZSI6ICJhZG1pbiIKICAgIH0sCiAgICAibWFpbCI6IHsKICAgICAgICAiZW5hYmxlIjogdHJ1ZSwKICAgICAgICAiaG9zdCI6ICJzbXRwLjE2My5jb20iLAogICAgICAgICJwb3J0IjogNDY1LAogICAgICAgICJmcm9tIjogIioqKkAxNjMuY29tIiwKICAgICAgICAiYXV0aCI6IHsKICAgICAgICAgICAgInVzZXIiOiAiKioqQDE2My5jb20iLAogICAgICAgICAgICAicGFzcyI6ICIqKioqKiIKICAgICAgICB9CiAgICB9LAoJImNsb3NlUmVnaXN0ZXIiOiB0cnVlCn0=\" | base64 -d > ../config.json\nps -aux\nkill -9 进程号;node server/app.js"
+            self.result_text.insert(tk.END, f"修复输出:\n{unacc}\n")
+        elif exploit_type == "nosql注入":
+            self.result_text.insert(tk.END, "修复漏洞说明\n")
+            unacc = "未编写"
+            self.result_text.insert(tk.END, f"修复输出:\n{unacc}\n")
 
 if __name__ == "__main__":
     root = tk.Tk()
